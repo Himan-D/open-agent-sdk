@@ -774,6 +774,31 @@ BACKSTORY: {self.backstory}
     async def reset(self):
         """Reset agent state."""
         self._conversation_history = []
+    
+    async def spawn_subagent(self, name: str, task: str) -> "Agent":
+        """Spawn a subagent for delegated tasks.
+        
+        Example:
+            >>> subagent = await agent.spawn_subagent(
+            ...     name="specialist",
+            ...     task="Handle security concerns"
+            ... )
+            >>> result = await subagent.process_message("What are the risks?")
+        """
+        subagent = Agent(AgentConfig(
+            name=name,
+            role=f"{self.role} Specialist",
+            goal=f"Assist with {task}",
+            backstory=f"You are a specialist subagent spawned by {self.name}. {task}",
+            verbose=False,
+            llm=self.llm,
+            tools=self.tools,
+        ))
+        return subagent
+    
+    async def process_message(self, message: str) -> str:
+        """Process a single message (alias for execute)."""
+        return await self.execute(message)
 
 
 # =============================================================================
