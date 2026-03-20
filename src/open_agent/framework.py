@@ -10,13 +10,45 @@ __author__ = "Himan D <himanshu@open.ai>"
 
 import os
 import asyncio
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from enum import Enum
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+# Import tools from modular system
+try:
+    from open_agent.tools.modular import (
+        BaseTool as ToolBase,
+        ToolResult as ToolResult,
+        ToolRegistry,
+        get_default_tools as _get_default_tools,
+        create_tool,
+        tool,
+    )
+except ImportError:
+    # Fallback if tools not available
+    class ToolBase:
+        name = "base"
+        description = "base"
+    
+    class ToolResult:
+        def __init__(self, success, output="", error=""):
+            self.success = success
+            self.output = output
+            self.error = error
+    
+    def _get_default_tools():
+        return []
+    
+    def create_tool(*args, **kwargs):
+        raise NotImplementedError("Tools module not available")
+    
+    def tool(*args, **kwargs):
+        def decorator(f): return f
+        return decorator
 
 
 # =============================================================================
@@ -565,15 +597,8 @@ class ToolRegistry:
 
 
 def get_default_tools() -> List[BaseTool]:
-    """Get default tools."""
-    return [
-        CalculatorTool(),
-        WebSearchTool(),
-        PythonREPLTool(),
-        FileReadTool(),
-        FileWriteTool(),
-        WebFetchTool(),
-    ]
+    """Get default tools from the modular system."""
+    return _get_default_tools()
 
 
 # =============================================================================
@@ -956,24 +981,59 @@ async def create_agent(
     ))
 
 
-async def create_crew(
+def create_crew(
     agents_config: List[Dict[str, Any]],
     tasks_config: List[Dict[str, Any]],
     process: str = "sequential",
     verbose: bool = True,
 ) -> Crew:
-    """Create a configured crew from config dicts."""
+    """Create a configured crew from config dicts.
+    
+    Example:
+        >>> crew = create_crew(
+        ...     agents_config=[{"name": "r", "role": "R", "goal": "G", "backstory": "B"}],
+        ...     tasks_config=[{"description": "Do X", "agent": "r"}],
+        ... )
+        >>> results = await crew.kickoff()
+    """
     agents = []
     for cfg in agents_config:
-        agent = await create_agent(**cfg)
+        cfg_copy = cfg.copy()
+        provider = cfg_copy.pop("provider", "nvidia")
+        
+        llm_kwargs = {"temperature": 0.7, "max_tokens": 4096}
+        config = get_config()
+        
+        if provider == "nvidia":
+            llm_kwargs["api_key"] = config.nvidia_api_key
+            llm_kwargs["model"] = config.default_model
+        elif provider == "openai":
+            llm_kwargs["api_key"] = config.openai_api_key
+        elif provider == "anthropic":
+            llm_kwargs["api_key"] = config.anthropic_api_key
+        elif provider == "ollama":
+            llm_kwargs["model"] = "llama3.2"
+        
+        llm = LLMFactory.create(provider, **llm_kwargs)
+        
+        agent = Agent(AgentConfig(
+            name=cfg_copy["name"],
+            role=cfg_copy["role"],
+            goal=cfg_copy["goal"],
+            backstory=cfg_copy["backstory"],
+            verbose=verbose,
+            tools=get_default_tools(),
+            llm=llm,
+        ))
         agents.append(agent)
     
     tasks = []
     for cfg in tasks_config:
-        agent_name = cfg.pop("agent", None)
+        cfg_copy = cfg.copy()
+        agent_name = cfg_copy.pop("agent", None)
         if agent_name:
-            cfg["agent"] = next((a for a in agents if a.name == agent_name), None)
-        tasks.append(Task(**cfg))
+            cfg_copy["agent"] = next((a for a in agents if a.name == agent_name), None)
+        tasks.append(Task(**cfg_copy))
     
     return Crew(
         agents=agents,
