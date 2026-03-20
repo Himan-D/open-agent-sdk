@@ -1,22 +1,23 @@
-# OpenAgent SDK
+# SmithAI
 
-OpenClaw-inspired AI Agent Framework with NVIDIA Nemotron, Voice, Canvas, Browser Sandbox, and Multi-Channel Support.
+Production-ready Python AI Agent Framework with NVIDIA Nemotron, Voice, Canvas, Browser Sandbox, and Multi-Channel Support.
 
 ## Features
 
 - **NVIDIA Nemotron** - Advanced reasoning with LangChain integration
 - **Voice** - Text-to-Speech and Speech-to-Text
-- **Canvas** - Interactive code workspace with execution
+- **Canvas** - Interactive code workspace with Python/JS execution
 - **Browser Sandbox** - Playwright-based web automation
 - **Multi-Channel** - WhatsApp, Signal, IRC, Matrix, Nostr, and more
-- **Memory** - Persistent MEMORY.md-style storage
-- **Skills** - Markdown-based skill system
+- **Memory** - Persistent storage with MEMORY.md-style interface
+- **Skills** - Markdown-based skill registry system
+- **Gateway** - Message routing and session management
 - **TUI** - Terminal user interface included
 
 ## Installation
 
 ```bash
-pip install open-agent-sdk
+pip install smith-ai
 ```
 
 ## Quick Start
@@ -40,14 +41,26 @@ export NVIDIA_API_KEY=your_nvidia_api_key
 
 ```bash
 # Voice support
-pip install open-agent-sdk[voice]
+pip install smith-ai[voice]
 
 # Browser automation
-pip install open-agent-sdk[browser]
+pip install smith-ai[browser]
 
 # All extras
-pip install open-agent-sdk[all]
+pip install smith-ai[all]
 ```
+
+## Core Modules
+
+| Module | Description |
+|--------|-------------|
+| `agents` | DeepAgent runtime with tool orchestration |
+| `canvas` | Interactive code execution workspace |
+| `channels` | Multi-platform messaging adapters |
+| `gateway` | Routing, sessions, and auth |
+| `memory` | Persistent knowledge storage |
+| `sandbox` | Browser automation |
+| `voice` | TTS/STT capabilities |
 
 ## License
 

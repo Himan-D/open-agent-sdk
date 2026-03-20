@@ -1,12 +1,12 @@
 [project]
-name = "open-agent-sdk-v2"
+name = "smith-ai"
 version = "1.0.0"
-description = "OpenClaw-inspired AI Agent Framework with NVIDIA Nemotron, Voice, Canvas, Browser Sandbox, and Multi-Channel Support"
+description = "Production AI Agent Framework - NVIDIA Nemotron, Voice, Canvas, Browser Sandbox, Multi-Channel Support"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Himan D", email = "himanshu@open.ai"}]
-keywords = ["ai", "agent", "langchain", "nvidia", "nemotron", "openshell", "openclaw", "orchestration"]
+keywords = ["ai", "agent", "langchain", "nvidia", "nemotron", "moltbook", "voice", "canvas", "automation"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -47,7 +47,8 @@ all = [
 ]
 
 [project.scripts]
-open-agent = "open_agent.cli:main"
+smith-ai = "open_agent.cli:main"
+smith-ai-tui = "open_agent.ui.tui:main"
 
 [build-system]
 requires = ["hatchling"]
