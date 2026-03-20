@@ -1,0 +1,115 @@
+[project]
+name = "open-agent-sdk-publish"
+version = "1.0.0"
+description = "OpenClaw-inspired AI Agent Framework with NVIDIA Nemotron, Voice, Canvas, Browser Sandbox, and Multi-Channel Support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Himan D", email = "himanshu@open.ai"}]
+keywords = ["ai", "agent", "langchain", "deep-agents", "nvidia", "nemotron", "openshell", "openclaw", "orchestration", "voice", "canvas", "browser-automation"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # LangChain core
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-community>=0.3.0",
+    # Deep Agents SDK
+    "deepagents>=0.1.0",
+    # NVIDIA integrations
+    "langchain-nvidia-ai-endpoints>=0.3.0",
+    # Google APIs (OAuth and services)
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.25.0",
+    "google-auth-oauthlib>=1.1.0",
+    "google-auth-httplib2>=0.2.0",
+    # GitHub API
+    "PyGithub>=2.1.0",
+    # Notion API
+    "notion-client>=2.2.0",
+    # OpenShell (install manually if needed)
+    # "openshell>=0.0.12",
+    # LangGraph
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint>=2.0.0",
+    # Other LangChain integrations
+    "langchain-anthropic>=0.2.0",
+    "langchain-openai>=0.2.0",
+    # Pydantic & config
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
+    # Async support
+    "httpx>=0.27.0",
+    "aiofiles>=23.0.0",
+    # Logging
+    "structlog>=24.0.0",
+    # CLI
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    # Memory/Vector store
+    "chromadb>=0.5.0",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+]
+ui = [
+    "gradio>=4.0.0",
+    "streamlit>=1.30.0",
+]
+voice = [
+    "espeak>=1.0.0",
+    "speechrecognition>=3.8.0",
+    "openai-whisper>=1.0.0",
+]
+browser = [
+    "playwright>=1.40.0",
+]
+all = [
+    "espeak>=1.0.0",
+    "speechrecognition>=3.8.0",
+    "openai-whisper>=1.0.0",
+    "playwright>=1.40.0",
+]
+
+[project.scripts]
+open-agent = "open_agent.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/open_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+warn_return_any = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
