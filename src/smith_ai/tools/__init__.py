@@ -146,13 +146,17 @@ class WebSearchTool(BaseTool):
     
     async def execute(self, query: str) -> ToolResult:
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
+        except ImportError:
+            try:
+                from duckduckgo_search import DDGS
+            except ImportError:
+                return ToolResult(tool_call_id="", success=False, error="ddgs not installed (pip install ddgs)")
+        try:
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=5))
             output = "\n".join([f"- {r['title']}: {r['href']}" for r in results])
             return ToolResult(tool_call_id="", success=True, output=output or "No results found")
-        except ImportError:
-            return ToolResult(tool_call_id="", success=False, error="duckduckgo-search not installed")
         except Exception as e:
             return ToolResult(tool_call_id="", success=False, error=str(e))
 

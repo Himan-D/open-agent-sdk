@@ -1,4 +1,4 @@
-"""SmithAI - Production AI Agent Framework.
+"""SmithAI - Enterprise AI Agent Framework.
 
 Browser automation, multi-agent orchestration, and integrations for the enterprise.
 """
@@ -104,10 +104,72 @@ from smith_ai.integrations import (
     GoogleConfig,
 )
 
+from smith_ai.edge import (
+    OllamaClient,
+    OllamaConfig,
+    LlamaCppServer,
+    TransformersLocal,
+    TGIClient,
+    LocalModelFactory,
+    EdgeDeploymentConfig,
+    ModelSize,
+    ModelInfo,
+)
+
+from smith_ai.memory import (
+    Document,
+    SearchResult,
+    MemoryConfig,
+    VectorStore,
+    InMemoryVectorStore,
+    ChromaStore,
+    FAISSStore,
+    PineconeStore,
+    MemoryStore,
+    KnowledgeGraph,
+    EmbeddingModel,
+    get_embeddings,
+    cosine_similarity,
+)
+
+from smith_ai.enterprise import (
+    RateLimitConfig,
+    RateLimitStrategy,
+    RateLimiter,
+    RateLimitExceeded,
+    TokenBucket,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpen,
+    CircuitState,
+    RetryConfig,
+    retry,
+    CacheBackend,
+    MemoryCache,
+    RedisCache,
+    cached,
+    SecretsManager,
+    Observability,
+    EnterpriseConfig,
+    EnterpriseManager,
+)
+
+from smith_ai.storage import (
+    DatabaseConfig,
+    RedisConfig,
+    MongoConfig,
+    PostgresTool,
+    MongoTool,
+    RedisTool,
+    S3Tool,
+    GCSStorage,
+)
+
 __all__ = [
     "__version__",
     "__author__",
     "__status__",
+    # Core
     "AgentMessage",
     "ToolCall",
     "ToolResult",
@@ -121,6 +183,7 @@ __all__ = [
     "LLMConfig",
     "LLMRegistry",
     "create_llm",
+    # Tools
     "ToolRegistry",
     "tool",
     "register_tool",
@@ -131,16 +194,20 @@ __all__ = [
     "WebSearchTool",
     "PythonREPLTool",
     "JSONTool",
+    # Agents
     "Agent",
     "Task",
     "Crew",
     "create_agent",
     "create_crew",
+    # Runtime
     "Runtime",
     "RuntimeConfig",
+    # Sandbox
     "Sandbox",
     "SandboxSession",
     "SandboxTool",
+    # Browser
     "BrowserSession",
     "BrowserTool",
     "WebScraper",
@@ -151,12 +218,15 @@ __all__ = [
     "RemoteBrowser",
     "BrowserPool",
     "BrowserType",
+    # Captcha
     "CaptchaSolver",
     "CaptchaDetector",
     "CaptchaAutomation",
     "CaptchaType",
+    # TUI
     "TUIBridge",
     "create_tui_app",
+    # Integrations
     "GitHubClient",
     "GitHubConfig",
     "SlackClient",
@@ -169,4 +239,57 @@ __all__ = [
     "JiraConfig",
     "GoogleWorkspace",
     "GoogleConfig",
+    # Edge AI
+    "OllamaClient",
+    "OllamaConfig",
+    "LlamaCppServer",
+    "TransformersLocal",
+    "TGIClient",
+    "LocalModelFactory",
+    "EdgeDeploymentConfig",
+    "ModelSize",
+    "ModelInfo",
+    # Memory
+    "Document",
+    "SearchResult",
+    "MemoryConfig",
+    "VectorStore",
+    "InMemoryVectorStore",
+    "ChromaStore",
+    "FAISSStore",
+    "PineconeStore",
+    "MemoryStore",
+    "KnowledgeGraph",
+    "EmbeddingModel",
+    "get_embeddings",
+    "cosine_similarity",
+    # Enterprise
+    "RateLimitConfig",
+    "RateLimitStrategy",
+    "RateLimiter",
+    "RateLimitExceeded",
+    "TokenBucket",
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
+    "CircuitBreakerOpen",
+    "CircuitState",
+    "RetryConfig",
+    "retry",
+    "CacheBackend",
+    "MemoryCache",
+    "RedisCache",
+    "cached",
+    "SecretsManager",
+    "Observability",
+    "EnterpriseConfig",
+    "EnterpriseManager",
+    # Storage
+    "DatabaseConfig",
+    "RedisConfig",
+    "MongoConfig",
+    "PostgresTool",
+    "MongoTool",
+    "RedisTool",
+    "S3Tool",
+    "GCSStorage",
 ]
