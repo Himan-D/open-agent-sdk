@@ -12,7 +12,7 @@ Run: python examples/07_openclaw_demo.py
 import asyncio
 import os
 
-os.environ['NVIDIA_API_KEY'] = 'REDACTED_API_KEY'
+# Get API key from environment (set NVIDIA_API_KEY in your shell)
 
 from open_agent.integrations.openclawsdk import (
     OpenShellBackend, SandboxSession, SandboxType, SandboxConfig,

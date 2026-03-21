@@ -22,8 +22,10 @@ from open_agent import (
     ToolRegistry, tool, create_tool
 )
 
-# Set your API key
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "REDACTED_API_KEY")
+# Get API key from environment (set NVIDIA_API_KEY in your shell)
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+if not NVIDIA_API_KEY:
+    print("Warning: NVIDIA_API_KEY not set. Set it with: export NVIDIA_API_KEY=your_key")
 
 
 async def main():
