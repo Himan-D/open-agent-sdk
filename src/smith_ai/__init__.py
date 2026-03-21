@@ -86,7 +86,7 @@ from smith_ai.captcha import (
 
 from smith_ai.tui import (
     TUIBridge,
-    create_tui_app,
+    create_tui,
 )
 
 from smith_ai.integrations import (
@@ -278,7 +278,7 @@ __all__ = [
     "CaptchaType",
     # TUI
     "TUIBridge",
-    "create_tui_app",
+    "create_tui",
     # Integrations
     "GitHubClient",
     "GitHubConfig",
