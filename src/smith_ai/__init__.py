@@ -3,7 +3,7 @@
 Browser automation, multi-agent orchestration, and integrations for the enterprise.
 """
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"
 __author__ = "Himan D <himanshu@open.ai>"
 __status__ = "production"
 
@@ -197,6 +197,27 @@ from smith_ai.agi import (
     create_advanced_crew,
 )
 
+from smith_ai.agi.v2 import (
+    CognitiveModule,
+    CognitiveState,
+    MemoryType,
+    ReasoningMethod,
+    MemoryItem,
+    Chunk,
+    Production,
+    Episode,
+    WorkingMemory,
+    ProceduralMemory,
+    DeclarativeMemory,
+    CognitiveAgent,
+    CognitiveCrew,
+    TrueAGIAgent,
+    OpenShellIntegration,
+    create_cognitive_agent,
+    create_true_agi_agent,
+    create_cognitive_crew,
+)
+
 __all__ = [
     "__version__",
     "__author__",
@@ -335,7 +356,7 @@ __all__ = [
     "AgenticAgent",
     "MultiAgentCrew",
     "create_agentic_agent",
-    # AGI
+    # AGI v1
     "CognitiveMode",
     "BeliefState",
     "Confidence",
@@ -352,4 +373,23 @@ __all__ = [
     "AdvancedMultiAgentCrew",
     "create_advanced_agent",
     "create_advanced_crew",
+    # AGI v2 (Common Model of Cognition)
+    "CognitiveModule",
+    "CognitiveState",
+    "MemoryType",
+    "ReasoningMethod",
+    "MemoryItem",
+    "Chunk",
+    "Production",
+    "Episode",
+    "WorkingMemory",
+    "ProceduralMemory",
+    "DeclarativeMemory",
+    "CognitiveAgent",
+    "CognitiveCrew",
+    "TrueAGIAgent",
+    "OpenShellIntegration",
+    "create_cognitive_agent",
+    "create_true_agi_agent",
+    "create_cognitive_crew",
 ]
