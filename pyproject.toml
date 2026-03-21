@@ -1,7 +1,7 @@
 [project]
 name = "smith-ai"
-version = "2.0.0"
-description = "Enterprise AI Agent Framework - Browser Automation, Anti-Detection, Multi-Agent Orchestration, 15+ Integrations"
+version = "3.0.0"
+description = "Advanced AGI AI Agent Framework - Multi-Method Reasoning, HTN Planning, Metacognition, World Model, Theory of Mind"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

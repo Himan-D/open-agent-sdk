@@ -3,7 +3,7 @@
 Browser automation, multi-agent orchestration, and integrations for the enterprise.
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "Himan D <himanshu@open.ai>"
 __status__ = "production"
 
@@ -165,6 +165,38 @@ from smith_ai.storage import (
     GCSStorage,
 )
 
+from smith_ai.agentic import (
+    ThinkStep,
+    Thought,
+    PlanStep,
+    Goal,
+    WorkingMemory,
+    ReasoningEngine,
+    ToolExecutor,
+    AgenticAgent,
+    MultiAgentCrew,
+    create_agentic_agent,
+)
+
+from smith_ai.agi import (
+    CognitiveMode,
+    BeliefState,
+    Confidence,
+    Concept,
+    Fact,
+    WorldModel,
+    Memory,
+    ReasoningResult,
+    Metacognition,
+    TheoryOfMind,
+    AgentModel,
+    Curiosity,
+    AdvancedAgent,
+    AdvancedMultiAgentCrew,
+    create_advanced_agent,
+    create_advanced_crew,
+)
+
 __all__ = [
     "__version__",
     "__author__",
@@ -292,4 +324,32 @@ __all__ = [
     "RedisTool",
     "S3Tool",
     "GCSStorage",
+    # Agentic
+    "ThinkStep",
+    "Thought",
+    "PlanStep",
+    "Goal",
+    "WorkingMemory",
+    "ReasoningEngine",
+    "ToolExecutor",
+    "AgenticAgent",
+    "MultiAgentCrew",
+    "create_agentic_agent",
+    # AGI
+    "CognitiveMode",
+    "BeliefState",
+    "Confidence",
+    "Concept",
+    "Fact",
+    "WorldModel",
+    "Memory",
+    "ReasoningResult",
+    "Metacognition",
+    "TheoryOfMind",
+    "AgentModel",
+    "Curiosity",
+    "AdvancedAgent",
+    "AdvancedMultiAgentCrew",
+    "create_advanced_agent",
+    "create_advanced_crew",
 ]
