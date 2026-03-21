@@ -28,7 +28,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
+import shlex
+import subprocess
 import time
 import uuid
 from collections import defaultdict, deque
@@ -1030,83 +1033,253 @@ class CognitiveCrew:
 
 
 # ============================================================================
-# OPENSHELL INTEGRATION
+# OPENSHELL INTEGRATION (NVIDIA OpenShell SDK)
 # ============================================================================
 
 class OpenShellIntegration:
-    """Integration with OpenShell for sandboxed execution.
+    """NVIDIA OpenShell integration for sandboxed agent execution.
     
-    Provides:
-    - Secure code execution
-    - Sandboxed tool use
-    - Policy enforcement
+    OpenShell provides kernel-level isolation (Landlock LSM) with
+    policy-enforced file/network access for secure AI agent execution.
+    
+    Features:
+    - Sandboxed code execution
+    - Policy-based access control
+    - Credential injection
+    - Privacy routing for inference
+    
+    CLI Commands:
+        openshell sandbox create [--from <agent>]  - Create sandbox
+        openshell sandbox list                       - List sandboxes
+        openshell sandbox delete <name>              - Delete sandbox
+        openshell exec <name> <command>              - Execute command
+        openshell logs <name>                        - View logs
+        openshell policy set <policy.yaml> <name>    - Set policy
     """
+    
+    OPENSHELL_PATHS = [
+        os.path.expanduser("~/.local/bin/openshell"),
+        os.path.expanduser("~/.cargo/bin/openshell"),
+    ]
     
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
         self.sessions: Dict[str, Any] = {}
+        self._openshell_path = self._find_openshell()
+        self._docker_available = self._check_docker()
+        self.available = self._openshell_path is not None and self._docker_available
         self._check_openshell()
     
+    def _find_openshell(self) -> Optional[str]:
+        """Find OpenShell CLI binary."""
+        import shutil
+        for path in self.OPENSHELL_PATHS:
+            if path and os.path.isfile(path):
+                try:
+                    result = subprocess.run([path, "--version"], capture_output=True, timeout=5)
+                    if result.returncode == 0:
+                        return path
+                except:
+                    pass
+        which_path = shutil.which("openshell")
+        if which_path:
+            return which_path
+        return None
+    
+    def _check_docker(self) -> bool:
+        """Check if Docker is available and running."""
+        docker_paths = [
+            "/var/run/docker.sock",
+            os.path.expanduser("~/.docker/run/docker.sock"),
+        ]
+        docker_host = os.environ.get("DOCKER_HOST", "")
+        
+        if docker_host:
+            socket_path = docker_host.replace("unix://", "")
+            return os.path.exists(socket_path)
+        
+        for path in docker_paths:
+            if os.path.exists(path):
+                try:
+                    result = subprocess.run(
+                        ["docker", "info"],
+                        capture_output=True,
+                        timeout=5,
+                        env={**os.environ, "DOCKER_HOST": f"unix://{path}"}
+                    )
+                    return result.returncode == 0
+                except:
+                    pass
+        return False
+    
     def _check_openshell(self) -> None:
-        """Check if OpenShell CLI is available."""
+        """Check if OpenShell CLI is available and get version."""
+        if not self._openshell_path:
+            if self.verbose:
+                print("[OpenShell] CLI not found - install with:")
+                print("  curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh")
+                print("  or: uv tool install openshell")
+            self.version = None
+            return
+        
+        if not self._docker_available:
+            if self.verbose:
+                print("[OpenShell] Docker not running - using local execution fallback")
+            self.version = "installed (no Docker)"
+            return
+        
         try:
-            import subprocess
             result = subprocess.run(
-                ["openshell", "--version"],
+                [self._openshell_path, "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
             if result.returncode == 0:
+                self.version = result.stdout.strip()
                 if self.verbose:
-                    print(f"[OpenShell] Available: {result.stdout.strip()}")
-                self.available = True
+                    print(f"[OpenShell] Available: {self.version}")
             else:
                 if self.verbose:
                     print("[OpenShell] CLI returned non-zero")
-                self.available = False
-        except FileNotFoundError:
-            if self.verbose:
-                print("[OpenShell] Not installed - will use fallback")
-            self.available = False
+                self.version = None
         except Exception as e:
             if self.verbose:
                 print(f"[OpenShell] Error: {e}")
-            self.available = False
+            self.version = None
+    
+    def _run(self, args: List[str], timeout: int = 60) -> subprocess.CompletedProcess:
+        """Run openshell command."""
+        return subprocess.run(
+            [self._openshell_path] + args,
+            capture_output=True, text=True, timeout=timeout
+        )
+    
+    def create_sandbox(
+        self,
+        name: Optional[str] = None,
+        agent: Optional[str] = None,
+        from_image: Optional[str] = None,
+        policy_file: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a sandbox environment.
+        
+        Args:
+            name: Sandbox name (auto-generated if not provided)
+            agent: Agent to launch (claude, opencode, codex, copilot)
+            from_image: Community sandbox image to use
+            policy_file: Path to YAML policy file
+            
+        Returns:
+            Dict with session_id and status
+        """
+        session_id = name or f"sandbox_{uuid.uuid4().hex[:8]}"
+        
+        if self.available and self._docker_available:
+            try:
+                cmd = ["sandbox", "create"]
+                if name:
+                    cmd.extend(["--name", name])
+                if agent:
+                    cmd.extend(["--", agent])
+                if from_image:
+                    cmd.extend(["--from", from_image])
+                if policy_file:
+                    cmd.extend(["--policy", policy_file])
+                
+                result = self._run(cmd, timeout=120)
+                if result.returncode == 0:
+                    if self.verbose:
+                        print(f"[OpenShell] Sandbox created: {session_id}")
+                        print(result.stdout)
+                    mode = "openshell"
+                else:
+                    if self.verbose:
+                        print(f"[OpenShell] Create failed: {result.stderr}")
+                    mode = "openshell_fallback"
+            except Exception as e:
+                if self.verbose:
+                    print(f"[OpenShell] Create error: {e}")
+                mode = "openshell_fallback"
+        else:
+            if self.verbose:
+                print("[OpenShell] Docker not available - using local execution mode")
+            mode = "local"
+        
+        self.sessions[session_id] = {
+            "created": time.time(),
+            "agent": agent,
+            "from_image": from_image,
+            "executions": 0,
+            "mode": mode,
+        }
+        
+        return {"session_id": session_id, "available": self.available, "mode": mode}
     
     def execute_sandboxed(
         self,
         code: str,
         language: str = "python",
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Execute code in sandboxed environment."""
-        if not self.available:
+        """Execute code in sandboxed environment.
+        
+        Args:
+            code: Code to execute
+            language: Programming language (python, bash, etc.)
+            session_id: Specific sandbox session to use
+            
+        Returns:
+            Dict with success, output, error, and mode
+        """
+        if not self.available or not session_id:
             return self._execute_fallback(code, language)
         
-        # Use OpenShell for execution
+        if language == "python":
+            command = f"python3 -c {shlex.quote(code)}"
+        elif language == "bash":
+            command = f"bash -c {shlex.quote(code)}"
+        else:
+            command = code
+        
         try:
-            import subprocess
             result = subprocess.run(
-                ["openshell", "exec", "-c", code],
-                capture_output=True,
-                text=True,
-                timeout=30,
+                [self._openshell_path, "exec", session_id, "--", command],
+                capture_output=True, text=True, timeout=30
             )
             
             return {
                 "success": result.returncode == 0,
                 "output": result.stdout,
                 "error": result.stderr,
+                "mode": "openshell",
             }
         except Exception as e:
             return {
                 "success": False,
                 "output": "",
                 "error": str(e),
+                "mode": "openshell_fallback",
             }
     
+    def execute_code(
+        self,
+        code: str,
+        language: str = "python",
+    ) -> Dict[str, Any]:
+        """Execute code (auto-selects sandbox or fallback).
+        
+        This is the main entry point for code execution.
+        Uses OpenShell sandbox if available and a session exists,
+        otherwise falls back to local execution.
+        """
+        if self.available and self.sessions:
+            session_id = next(iter(self.sessions.keys()))
+            return self.execute_sandboxed(code, language, session_id)
+        return self._execute_fallback(code, language)
+    
     def _execute_fallback(self, code: str, language: str) -> Dict[str, Any]:
-        """Fallback execution without OpenShell."""
+        """Fallback execution without OpenShell (local exec)."""
         if language == "python":
             try:
                 import io
@@ -1122,34 +1295,99 @@ class OpenShellIntegration:
                     "success": True,
                     "output": output.getvalue(),
                     "error": "",
-                    "mode": "fallback",
+                    "mode": "local_fallback",
                 }
             except Exception as e:
                 return {
                     "success": False,
                     "output": "",
                     "error": str(e),
-                    "mode": "fallback",
+                    "mode": "local_fallback",
+                }
+        
+        if language in ("bash", "shell"):
+            try:
+                result = subprocess.run(
+                    code, shell=True, capture_output=True, text=True, timeout=30
+                )
+                return {
+                    "success": result.returncode == 0,
+                    "output": result.stdout,
+                    "error": result.stderr,
+                    "mode": "local_fallback",
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "output": "",
+                    "error": str(e),
+                    "mode": "local_fallback",
                 }
         
         return {
             "success": False,
             "output": "",
-            "error": f"Language {language} not supported in fallback mode",
-            "mode": "fallback",
+            "error": f"Language {language} not supported",
+            "mode": "local_fallback",
         }
     
+    def list_sandboxes(self) -> List[Dict[str, Any]]:
+        """List all sandboxes."""
+        if not self.available:
+            return list(self.sessions.values())
+        
+        try:
+            result = self._run(["sandbox", "list", "--format", "json"], timeout=30)
+            if result.returncode == 0:
+                import json
+                return json.loads(result.stdout)
+        except:
+            pass
+        
+        return []
+    
+    def delete_sandbox(self, session_id: str) -> bool:
+        """Delete a sandbox."""
+        if session_id in self.sessions:
+            del self.sessions[session_id]
+        
+        if not self.available:
+            return True
+        
+        try:
+            result = self._run(["sandbox", "delete", session_id], timeout=30)
+            return result.returncode == 0
+        except:
+            return False
+    
+    def get_logs(self, session_id: str, tail: int = 100) -> str:
+        """Get sandbox logs."""
+        if not self.available:
+            return ""
+        
+        try:
+            result = subprocess.run(
+                [self._openshell_path, "logs", session_id, "--tail", str(tail)],
+                capture_output=True, text=True, timeout=30
+            )
+            return result.stdout
+        except:
+            return ""
+    
+    def set_policy(self, session_id: str, policy_path: str) -> bool:
+        """Set sandbox policy from YAML file."""
+        if not self.available:
+            return False
+        
+        try:
+            result = self._run(["policy", "set", "--policy", policy_path, session_id], timeout=30)
+            return result.returncode == 0
+        except:
+            return False
+    
     def create_sandbox_session(self, name: str = "default") -> Dict[str, Any]:
-        """Create a sandbox session."""
-        session_id = f"session_{uuid.uuid4().hex[:8]}"
-        
-        self.sessions[session_id] = {
-            "created": time.time(),
-            "name": name,
-            "executions": 0,
-        }
-        
-        return {"session_id": session_id, "available": self.available}
+        """Create a sandbox session (legacy method)."""
+        return self.create_sandbox(name=name)
 
 
 # ============================================================================

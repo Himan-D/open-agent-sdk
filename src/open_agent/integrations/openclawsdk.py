@@ -91,59 +91,174 @@ class SandboxSession:
 
 
 class OpenShellBackend:
-    """OpenShell sandbox backend - full integration.
+    """NVIDIA OpenShell sandbox backend - full integration.
     
-    Features:
-    - Isolated Docker/K3s containers
-    - Policy-enforced execution
+    OpenShell provides:
+    - Kernel-level isolation (Landlock LSM)
+    - Policy-enforced file/network access
     - Credential injection
-    - Privacy routing
+    - Privacy routing for inference
+    
+    CLI Reference:
+        openshell sandbox create [--from <agent>]  - Create sandbox
+        openshell sandbox list                       - List sandboxes
+        openshell sandbox get <name>                 - Get sandbox info
+        openshell sandbox delete <name>              - Delete sandbox
+        openshell sandbox upload <name> <src> <dst>  - Upload files
+        openshell sandbox download <name> <src> <dst> - Download files
+        openshell exec <name> <command>              - Execute in sandbox
+        openshell logs <name>                        - View logs
+        openshell term                               - Terminal UI
     """
+    
+    OPENSHELL_PATH = os.path.expanduser("~/.local/bin/openshell")
     
     def __init__(self, config: Optional[SandboxConfig] = None):
         self.config = config or SandboxConfig()
         self._sessions: Dict[str, SandboxSession] = {}
-        self._openshell_available = self._check_openshell()
+        self._openshell_path = self._find_openshell()
+        self._openshell_available = self._openshell_path is not None
+        if self._openshell_available:
+            logger.info("openshell_found", path=self._openshell_path)
+        else:
+            logger.warning("openshell_not_found")
     
-    def _check_openshell(self) -> bool:
-        """Check if OpenShell CLI is available."""
+    def _find_openshell(self) -> Optional[str]:
+        """Find OpenShell CLI binary."""
+        import shutil
+        paths = [
+            self.OPENSHELL_PATH,
+            os.path.expanduser("~/.cargo/bin/openshell"),
+            shutil.which("openshell"),
+        ]
+        for path in paths:
+            if path and os.path.isfile(path):
+                try:
+                    result = subprocess.run([path, "--version"], capture_output=True, timeout=5)
+                    if result.returncode == 0:
+                        return path
+                except:
+                    pass
+        return None
+    
+    @property
+    def version(self) -> Optional[str]:
+        """Get OpenShell version."""
+        if not self._openshell_path:
+            return None
         try:
-            import subprocess
             result = subprocess.run(
-                ["openshell", "--version"],
-                capture_output=True,
-                timeout=5
+                [self._openshell_path, "--version"],
+                capture_output=True, text=True, timeout=5
             )
-            return result.returncode == 0
+            if result.returncode == 0:
+                return result.stdout.strip()
         except:
-            return False
+            pass
+        return None
     
-    def create_sandbox(self, agent_type: str = "nemotron") -> SandboxSession:
-        """Create new sandbox session."""
-        import subprocess
+    def _run(self, args: List[str], timeout: int = 60) -> subprocess.CompletedProcess:
+        """Run openshell command."""
+        return subprocess.run(
+            [self._openshell_path] + args,
+            capture_output=True, text=True, timeout=timeout
+        )
+    
+    def create_sandbox(
+        self,
+        name: Optional[str] = None,
+        agent: Optional[str] = None,
+        from_image: Optional[str] = None,
+        policy_file: Optional[str] = None,
+        forward_port: Optional[int] = None,
+    ) -> SandboxSession:
+        """Create new sandbox session.
         
-        session_id = f"sandbox_{uuid.uuid4().hex[:8]}"
+        Args:
+            name: Sandbox name (auto-generated if not provided)
+            agent: Agent to launch in sandbox (claude, opencode, codex, copilot)
+            from_image: Community sandbox image to use
+            policy_file: Path to YAML policy file
+            forward_port: Local port to forward to sandbox
+            
+        Returns:
+            SandboxSession for the created sandbox
+        """
+        session_id = name or f"sandbox_{uuid.uuid4().hex[:8]}"
         
         if self._openshell_available:
             try:
-                cmd = ["openshell", "sandbox", "create", "--from", agent_type]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                cmd = ["sandbox", "create"]
+                if name:
+                    cmd.extend(["--name", name])
+                if agent:
+                    cmd.extend(["--", agent])
+                if from_image:
+                    cmd.extend(["--from", from_image])
+                if policy_file:
+                    cmd.extend(["--policy", policy_file])
+                if forward_port:
+                    cmd.extend(["--forward", str(forward_port)])
+                
+                result = self._run(cmd, timeout=120)
                 if result.returncode == 0:
-                    logger.info("openshell_sandbox_created", session_id=session_id)
+                    logger.info("openshell_sandbox_created", session_id=session_id, output=result.stdout)
+                else:
+                    logger.warning("openshell_create_failed", stderr=result.stderr)
             except Exception as e:
-                logger.warning("openshell_fallback", error=str(e))
+                logger.warning("openshell_create_error", error=str(e))
         
         session = SandboxSession(session_id, self)
         self._sessions[session_id] = session
         return session
     
+    def list_sandboxes(self) -> List[Dict[str, Any]]:
+        """List all sandboxes."""
+        if not self._openshell_available:
+            return []
+        
+        try:
+            result = self._run(["sandbox", "list", "--format", "json"], timeout=30)
+            if result.returncode == 0:
+                import json
+                return json.loads(result.stdout)
+        except Exception as e:
+            logger.warning("openshell_list_error", error=str(e))
+        
+        return []
+    
+    def get_sandbox(self, name: str) -> Optional[Dict[str, Any]]:
+        """Get sandbox details."""
+        if not self._openshell_available:
+            return None
+        
+        try:
+            result = self._run(["sandbox", "get", name], timeout=30)
+            if result.returncode == 0:
+                import json
+                return json.loads(result.stdout)
+        except:
+            pass
+        
+        return None
+    
+    def delete_sandbox(self, name: str) -> bool:
+        """Delete a sandbox."""
+        if not self._openshell_available:
+            return False
+        
+        try:
+            result = self._run(["sandbox", "delete", name], timeout=30)
+            return result.returncode == 0
+        except:
+            return False
+    
     def _exec(self, session_id: str, command: str, timeout: int) -> Dict[str, Any]:
-        """Execute command."""
+        """Execute command in sandbox."""
         if self._openshell_available:
             try:
-                import subprocess
                 result = subprocess.run(
-                    ["openshell", "exec", session_id, command],
+                    [self._openshell_path, "exec", session_id, "--", command],
                     capture_output=True, text=True, timeout=timeout
                 )
                 return {
@@ -151,13 +266,13 @@ class OpenShellBackend:
                     "stdout": result.stdout,
                     "stderr": result.stderr,
                     "returncode": result.returncode,
+                    "mode": "openshell",
                 }
             except Exception as e:
-                return {"success": False, "error": str(e)}
+                logger.warning("openshell_exec_error", error=str(e))
         
         # Fallback to local execution
         try:
-            import subprocess
             result = subprocess.run(
                 command, shell=True, capture_output=True, text=True, timeout=timeout
             )
@@ -166,12 +281,13 @@ class OpenShellBackend:
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "returncode": result.returncode,
+                "mode": "local",
             }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": str(e), "mode": "local"}
     
     def _write(self, session_id: str, path: str, content: str) -> Dict[str, Any]:
-        """Write file."""
+        """Write file to sandbox using upload."""
         try:
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=os.path.basename(path)) as f:
@@ -179,35 +295,44 @@ class OpenShellBackend:
                 temp_path = f.name
             
             if self._openshell_available:
-                import subprocess
-                subprocess.run(
-                    ["openshell", "file", "write", session_id, path, temp_path],
-                    timeout=10
-                )
-            else:
-                import shutil
-                os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-                shutil.copy(temp_path, path)
+                try:
+                    result = subprocess.run(
+                        [self._openshell_path, "sandbox", "upload", session_id, temp_path, path],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    if result.returncode == 0:
+                        return {"success": True, "path": path, "mode": "openshell"}
+                except Exception as e:
+                    logger.warning("openshell_upload_error", error=str(e))
             
-            return {"success": True, "path": path}
+            # Fallback - write locally
+            import shutil
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+            shutil.copy(temp_path, path)
+            return {"success": True, "path": path, "mode": "local"}
+            
         except Exception as e:
             return {"success": False, "error": str(e)}
     
     def _read(self, session_id: str, path: str) -> str:
-        """Read file."""
+        """Read file from sandbox using download."""
         if self._openshell_available:
             try:
-                import subprocess, base64
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False) as f:
+                    temp_path = f.name
+                
                 result = subprocess.run(
-                    ["openshell", "file", "read", session_id, path],
-                    capture_output=True, text=True, timeout=10
+                    [self._openshell_path, "sandbox", "download", session_id, path, temp_path],
+                    capture_output=True, text=True, timeout=30
                 )
                 if result.returncode == 0:
-                    return base64.b64decode(result.stdout).decode()
-            except:
-                pass
+                    with open(temp_path, 'r') as f:
+                        return f.read()
+            except Exception as e:
+                logger.warning("openshell_download_error", error=str(e))
         
-        # Fallback
+        # Fallback - read locally
         try:
             with open(path, 'r') as f:
                 return f.read()
@@ -215,22 +340,56 @@ class OpenShellBackend:
             return ""
     
     def _terminate(self, session_id: str):
-        """Terminate session."""
+        """Terminate/delete sandbox session."""
         if self._openshell_available:
             try:
-                import subprocess
-                subprocess.run(
-                    ["openshell", "sandbox", "stop", session_id],
-                    timeout=10
-                )
+                self._run(["sandbox", "delete", session_id], timeout=30)
             except:
                 pass
         
         if session_id in self._sessions:
             del self._sessions[session_id]
     
+    def logs(self, session_id: str, tail: int = 100) -> str:
+        """Get sandbox logs."""
+        if not self._openshell_available:
+            return ""
+        
+        try:
+            result = subprocess.run(
+                [self._openshell_path, "logs", session_id, "--tail", str(tail)],
+                capture_output=True, text=True, timeout=30
+            )
+            return result.stdout
+        except:
+            return ""
+    
+    def set_policy(self, session_id: str, policy_path: str) -> bool:
+        """Set sandbox policy from YAML file."""
+        if not self._openshell_available:
+            return False
+        
+        try:
+            result = self._run(["policy", "set", "--policy", policy_path, session_id], timeout=30)
+            return result.returncode == 0
+        except:
+            return False
+    
+    def get_policy(self, session_id: str) -> Optional[str]:
+        """Get current sandbox policy."""
+        if not self._openshell_available:
+            return None
+        
+        try:
+            result = self._run(["policy", "get", session_id], timeout=30)
+            if result.returncode == 0:
+                return result.stdout
+        except:
+            pass
+        return None
+    
     def list_sessions(self) -> List[str]:
-        """List active sessions."""
+        """List active session IDs."""
         return list(self._sessions.keys())
     
     def cleanup(self):
