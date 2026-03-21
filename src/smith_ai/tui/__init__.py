@@ -646,16 +646,31 @@ def create_tui(mode: str = "interactive") -> SmithAIApp:
 async def async_run_tool(tool_name: str, **kwargs: Any) -> Any:
     """Run a tool asynchronously."""
     try:
-        from smith_ai.tools import get_tool
+        from smith_ai.tools import get_tool, register_builtin_tools
+        
+        # Ensure tools are registered
+        try:
+            register_builtin_tools()
+        except:
+            pass
+        
         tool = get_tool(tool_name)
         if not tool:
             return f"Tool not found: {tool_name}"
         
         import inspect
         if inspect.iscoroutinefunction(tool.execute):
-            return await tool.execute(**kwargs)
+            result = await tool.execute(**kwargs)
         else:
-            return tool.execute(**kwargs)
+            result = tool.execute(**kwargs)
+            # Handle if result is a coroutine (some sync tools return coroutines)
+            if inspect.iscoroutine(result):
+                result = await result
+        
+        # Extract result value if it's a ToolResult
+        if hasattr(result, 'result'):
+            return result.result
+        return result
     except Exception as e:
         return f"Error: {e}"
 

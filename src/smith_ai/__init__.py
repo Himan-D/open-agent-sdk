@@ -218,6 +218,20 @@ from smith_ai.agi.v2 import (
     create_cognitive_crew,
 )
 
+from smith_ai.skills import (
+    Skill,
+    SkillCategory,
+    SkillStatus,
+    SkillMetadata,
+    SkillRegistry,
+    RemoteSkillRegistry,
+    SkillManager,
+    SkillComposer,
+    SkillCLI,
+    SimpleSkill,
+    register_builtin_skills,
+)
+
 __all__ = [
     "__version__",
     "__author__",
@@ -392,4 +406,16 @@ __all__ = [
     "create_cognitive_agent",
     "create_true_agi_agent",
     "create_cognitive_crew",
+    # Skills System
+    "Skill",
+    "SkillCategory",
+    "SkillStatus",
+    "SkillMetadata",
+    "SkillRegistry",
+    "RemoteSkillRegistry",
+    "SkillManager",
+    "SkillComposer",
+    "SkillCLI",
+    "SimpleSkill",
+    "register_builtin_skills",
 ]
