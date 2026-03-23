@@ -1,6 +1,6 @@
 [project]
 name = "smith-ai"
-version = "4.1.0"
+version = "4.2.0"
 description = "Advanced AGI AI Agent Framework - Multi-Method Reasoning, HTN Planning, Metacognition, World Model, Theory of Mind"
 readme = "README.md"
 requires-python = ">=3.10"
